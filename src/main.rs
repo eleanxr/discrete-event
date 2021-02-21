@@ -2,9 +2,14 @@
 use core::cmp::Ordering;
 use std::collections::BinaryHeap;
 
+enum EventDisposition{
+    Delete, Reschedule(i32)
+}
+
 #[derive(Eq, PartialEq)]
 struct Event {
     execution_time: i32,
+    action: fn (i32) -> EventDisposition
 }
 
 impl PartialOrd for Event {
@@ -20,8 +25,8 @@ impl Ord for Event {
 }
 
 impl Event {
-    fn new(execution_time: i32) -> Event {
-        Event{ execution_time }
+    fn new(execution_time: i32, action: fn (i32) -> EventDisposition) -> Event {
+        Event{ execution_time, action }
     }
 }
 
@@ -46,13 +51,22 @@ impl EventManager {
 fn main() {
     let mut manager = EventManager::new();
 
-    manager.add(Event::new(10));
-    manager.add(Event::new(5));
-    manager.add(Event::new(11));
-    manager.add(Event::new(1));
+    let f = |t: i32| -> EventDisposition {
+        println!("Action executed at {}", t);
+        EventDisposition::Reschedule(t + 10)
+    };
 
-    println!("{}", manager.next().unwrap().execution_time);
-    println!("{}", manager.next().unwrap().execution_time);
-    println!("{}", manager.next().unwrap().execution_time);
-    println!("{}", manager.next().unwrap().execution_time);
+    manager.add(Event::new(10, f));
+    manager.add(Event::new(5, f));
+    manager.add(Event::new(11, f));
+    manager.add(Event::new(1, f));
+
+    while let Some(event) = manager.next() {
+        match &(event.action)(event.execution_time) {
+            EventDisposition::Reschedule(t) => manager.add(Event::new(t.clone(), event.action)),
+            EventDisposition::Delete => ()
+        }
+    }
+
+    println!("Simulation complete.");
 }
