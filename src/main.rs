@@ -52,7 +52,7 @@ fn main() {
     let mut manager = EventManager::new();
 
     let f = |t: i32| -> EventDisposition {
-        println!("Action executed at {}", t);
+        // println!("Action executed at {}", t);
         EventDisposition::Reschedule(t + 10)
     };
 
@@ -61,8 +61,17 @@ fn main() {
     manager.add(Event::new(11, f));
     manager.add(Event::new(1, f));
 
+    let mut current_time: i32;
+    let mut last_log_time:i32 = 0;
+    let log_frequency = 1000;
     while let Some(event) = manager.next() {
-        match &(event.action)(event.execution_time) {
+        current_time = event.execution_time;
+        let time_since_last_log = current_time - last_log_time;
+        if time_since_last_log >= log_frequency {
+            println!("t = {}", current_time);
+            last_log_time = current_time;
+        }
+        match &(event.action)(current_time) {
             EventDisposition::Reschedule(t) => manager.add(Event::new(t.clone(), event.action)),
             EventDisposition::Delete => ()
         }
