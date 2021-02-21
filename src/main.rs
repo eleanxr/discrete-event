@@ -1,9 +1,32 @@
 
+use core::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-struct EventManager
-{
-    event_queue: BinaryHeap<i32>,
+#[derive(Eq, PartialEq)]
+struct Event {
+    execution_time: i32,
+}
+
+impl PartialOrd for Event {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(other.execution_time.cmp(&self.execution_time))
+    }
+}
+
+impl Ord for Event {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.execution_time.cmp(&self.execution_time)
+    }
+}
+
+impl Event {
+    fn new(execution_time: i32) -> Event {
+        Event{ execution_time }
+    }
+}
+
+struct EventManager {
+    event_queue: BinaryHeap<Event>,
 }
 
 impl EventManager {
@@ -12,25 +35,24 @@ impl EventManager {
             event_queue : BinaryHeap::new()
         }
     }
-    fn add(&mut self, value: i32) {
-        self.event_queue.push(value)
+    fn add(&mut self, event: Event) {
+        self.event_queue.push(event)
     }
-    fn next(&mut self) -> i32 {
-        self.event_queue.pop().unwrap()
+    fn next(&mut self) -> Option<Event> {
+        self.event_queue.pop()
     }
 }
 
 fn main() {
-
     let mut manager = EventManager::new();
 
-    manager.add(10);
-    manager.add(5);
-    manager.add(11);
-    manager.add(1);
+    manager.add(Event::new(10));
+    manager.add(Event::new(5));
+    manager.add(Event::new(11));
+    manager.add(Event::new(1));
 
-    println!("{}", manager.next());
-    println!("{}", manager.next());
-    println!("{}", manager.next());
-    println!("{}", manager.next());
+    println!("{}", manager.next().unwrap().execution_time);
+    println!("{}", manager.next().unwrap().execution_time);
+    println!("{}", manager.next().unwrap().execution_time);
+    println!("{}", manager.next().unwrap().execution_time);
 }
