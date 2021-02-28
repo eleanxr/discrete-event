@@ -1,15 +1,26 @@
-
 use core::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-enum EventDisposition{
-    Delete, Reschedule(i32)
+pub enum EventDisposition {
+    Delete,
+    Reschedule(i32),
 }
 
-#[derive(Eq, PartialEq)]
+pub trait EventAction {
+    fn execute(&self, execution_time: i32) -> EventDisposition;
+}
+
 struct Event {
     execution_time: i32,
-    action: fn (i32) -> EventDisposition
+    action: Box<dyn EventAction>,
+}
+
+impl Eq for Event {}
+
+impl PartialEq for Event {
+    fn eq(&self, other: &Self) -> bool {
+        self.execution_time == other.execution_time
+    }
 }
 
 impl PartialOrd for Event {
@@ -25,8 +36,11 @@ impl Ord for Event {
 }
 
 impl Event {
-    fn new(execution_time: i32, action: fn (i32) -> EventDisposition) -> Event {
-        Event{ execution_time, action }
+    fn new(execution_time: i32, action: Box<dyn EventAction>) -> Event {
+        Event {
+            execution_time,
+            action,
+        }
     }
 }
 
@@ -37,7 +51,7 @@ struct EventManager {
 impl EventManager {
     fn new() -> EventManager {
         EventManager {
-            event_queue : BinaryHeap::new()
+            event_queue: BinaryHeap::new(),
         }
     }
     fn add(&mut self, event: Event) {
@@ -48,22 +62,49 @@ impl EventManager {
     }
 }
 
+// Begin domain specific
+
+struct PrintAndReschedule {}
+impl EventAction for PrintAndReschedule {
+    fn execute(&self, execution_time: i32) -> EventDisposition {
+        println!("Action executed at {}", execution_time);
+        if execution_time < 1000 {
+            EventDisposition::Reschedule(execution_time + 10)
+        } else {
+            EventDisposition::Delete
+        }
+    }
+}
+
+struct Mouse {
+    position: (f64, f64),
+}
+
+impl Mouse {
+    fn new() -> Self {
+        return Mouse {
+            position: (0.0, 0.0),
+        };
+    }
+
+    fn move_delta(&mut self, delta: (f64, f64)) {
+        self.position.0 += delta.0;
+        self.position.1 += delta.1;
+    }
+}
+
 fn main() {
     let mut manager = EventManager::new();
 
-    let f = |t: i32| -> EventDisposition {
-        // println!("Action executed at {}", t);
-        EventDisposition::Reschedule(t + 10)
-    };
-
-    manager.add(Event::new(10, f));
-    manager.add(Event::new(5, f));
-    manager.add(Event::new(11, f));
-    manager.add(Event::new(1, f));
+    manager.add(Event::new(10, Box::new(PrintAndReschedule{})));
+    manager.add(Event::new(5, Box::new(PrintAndReschedule{})));
+    manager.add(Event::new(11, Box::new(PrintAndReschedule{})));
+    manager.add(Event::new(2, Box::new(PrintAndReschedule{})));
 
     let mut current_time: i32;
-    let mut last_log_time:i32 = 0;
+    let mut last_log_time: i32 = 0;
     let log_frequency = 1000;
+    let max_time = 2000;
     while let Some(event) = manager.next() {
         current_time = event.execution_time;
         let time_since_last_log = current_time - last_log_time;
@@ -71,11 +112,10 @@ fn main() {
             println!("t = {}", current_time);
             last_log_time = current_time;
         }
-        match &(event.action)(current_time) {
-            EventDisposition::Reschedule(t) => manager.add(Event::new(t.clone(), event.action)),
-            EventDisposition::Delete => ()
+
+        if let EventDisposition::Reschedule(next_time) = event.action.execute(current_time) {
+            manager.add(Event::new(next_time.clone(), event.action));
         }
     }
-
     println!("Simulation complete.");
 }
