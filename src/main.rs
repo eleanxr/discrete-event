@@ -62,9 +62,36 @@ impl EventManager {
     }
 }
 
+struct EventExecutor {
+    log_frequency: i32,
+    last_log_time: i32,
+    current_time: i32,
+}
+
+impl EventExecutor {
+    fn new(log_frequency: i32) -> EventExecutor {
+        EventExecutor {
+            log_frequency: log_frequency,
+            last_log_time: 0,
+            current_time: 0
+        }
+    }
+
+    fn execute(&mut self, event: &Event) -> EventDisposition {
+            self.current_time = event.execution_time;
+            let time_since_last_log = self.current_time - self.last_log_time;
+            if time_since_last_log >= self.log_frequency {
+                println!("t = {}", self.current_time);
+                self.last_log_time = self.current_time;
+            }
+            event.action.execute(self.current_time)
+    }
+}
+
 // Begin domain specific
 
 struct PrintAndReschedule {}
+
 impl EventAction for PrintAndReschedule {
     fn execute(&self, execution_time: i32) -> EventDisposition {
         println!("Action executed at {}", execution_time);
@@ -96,25 +123,21 @@ impl Mouse {
 fn main() {
     let mut manager = EventManager::new();
 
-    manager.add(Event::new(10, Box::new(PrintAndReschedule{})));
-    manager.add(Event::new(5, Box::new(PrintAndReschedule{})));
-    manager.add(Event::new(11, Box::new(PrintAndReschedule{})));
-    manager.add(Event::new(2, Box::new(PrintAndReschedule{})));
+    manager.add(Event::new(10, Box::new(PrintAndReschedule {})));
+    manager.add(Event::new(5, Box::new(PrintAndReschedule {})));
+    manager.add(Event::new(11, Box::new(PrintAndReschedule {})));
+    manager.add(Event::new(2, Box::new(PrintAndReschedule {})));
 
-    let mut current_time: i32;
-    let mut last_log_time: i32 = 0;
-    let log_frequency = 1000;
-    let max_time = 2000;
-    while let Some(event) = manager.next() {
-        current_time = event.execution_time;
-        let time_since_last_log = current_time - last_log_time;
-        if time_since_last_log >= log_frequency {
-            println!("t = {}", current_time);
-            last_log_time = current_time;
-        }
+    let mut executor = EventExecutor::new(1000);
 
-        if let EventDisposition::Reschedule(next_time) = event.action.execute(current_time) {
-            manager.add(Event::new(next_time.clone(), event.action));
+    let mut current_time: i32 = 0;
+    let max_time = 990;
+    while current_time < max_time {
+        if let Some(event) = manager.next() {
+            current_time = event.execution_time;
+            if let EventDisposition::Reschedule(time) = executor.execute(&event) {
+                manager.add(Event::new(time, event.action));
+            }
         }
     }
     println!("Simulation complete.");
