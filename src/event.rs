@@ -1,42 +1,42 @@
 use core::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-pub enum EventDisposition {
+pub enum EventDisposition<T> {
     Delete,
-    Reschedule(i32),
+    Reschedule(T),
 }
 
-pub trait EventAction {
-    fn execute(&self, execution_time: i32) -> EventDisposition;
+pub trait EventAction<T> {
+    fn execute(&self, execution_time: T) -> EventDisposition<T>;
 }
 
-pub struct Event {
-    pub execution_time: i32,
-    pub action: Box<dyn EventAction>,
+pub struct Event<T> {
+    pub execution_time: T,
+    pub action: Box<dyn EventAction<T>>,
 }
 
-impl Eq for Event {}
+impl<T: Ord> Eq for Event<T> {}
 
-impl PartialEq for Event {
+impl<T: Ord> PartialEq for Event<T> {
     fn eq(&self, other: &Self) -> bool {
         self.execution_time == other.execution_time
     }
 }
 
-impl PartialOrd for Event {
+impl<T: Ord> PartialOrd for Event<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(other.execution_time.cmp(&self.execution_time))
     }
 }
 
-impl Ord for Event {
+impl<T: Ord> Ord for Event<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         other.execution_time.cmp(&self.execution_time)
     }
 }
 
-impl Event {
-    pub fn new(execution_time: i32, action: Box<dyn EventAction>) -> Event {
+impl<T> Event<T> {
+    pub fn new(execution_time: T, action: Box<dyn EventAction<T>>) -> Event<T> {
         Event {
             execution_time,
             action,
@@ -44,24 +44,30 @@ impl Event {
     }
 }
 
-struct EventExecutor {
-    log_frequency: i32,
-    last_log_time: i32,
-    current_time: i32,
+struct EventExecutor<T> {
+    log_frequency: T,
+    last_log_time: T,
+    current_time: T,
 }
 
-impl EventExecutor {
-    fn new(log_frequency: i32) -> EventExecutor {
+impl<T> EventExecutor<T>
+where
+    T: std::fmt::Display,
+    T: std::ops::Sub<Output = T>,
+    T: Ord,
+    T: Copy
+{
+    fn new(start_time: T, log_frequency: T) -> EventExecutor<T> {
         EventExecutor {
             log_frequency: log_frequency,
-            last_log_time: 0,
-            current_time: 0,
+            last_log_time: start_time,
+            current_time: start_time,
         }
     }
 
-    fn execute(&mut self, event: &Event) -> EventDisposition {
+    fn execute(&mut self, event: &Event<T>) -> EventDisposition<T> {
         self.current_time = event.execution_time;
-        let time_since_last_log = self.current_time - self.last_log_time;
+        let time_since_last_log: T = self.current_time - self.last_log_time;
         if time_since_last_log >= self.log_frequency {
             println!("t = {}", self.current_time);
             self.last_log_time = self.current_time;
@@ -70,30 +76,35 @@ impl EventExecutor {
     }
 }
 
-pub struct EventManager {
-    event_queue: BinaryHeap<Event>,
+pub struct EventManager<T: Ord> {
+    event_queue: BinaryHeap<Event<T>>,
 }
 
-impl EventManager {
-    pub fn new() -> EventManager {
+impl<T> EventManager<T>
+where
+    T: Ord,
+    T: std::fmt::Display,
+    T: std::ops::Sub<Output = T>,
+    T: Copy
+{
+    pub fn new() -> EventManager<T> {
         EventManager {
             event_queue: BinaryHeap::new(),
         }
     }
-    
-    pub fn add(&mut self, event: Event) {
+
+    pub fn add(&mut self, event: Event<T>) {
         self.event_queue.push(event)
     }
-    
-    pub fn next(&mut self) -> Option<Event> {
+
+    pub fn next(&mut self) -> Option<Event<T>> {
         self.event_queue.pop()
     }
 
-    pub fn run(&mut self) {
-        let mut executor = EventExecutor::new(100);
+    pub fn run(&mut self, start_time: T, max_time: T, log_interval: T) {
+        let mut executor: EventExecutor<T> = EventExecutor::<T>::new(start_time, log_interval);
 
-        let mut current_time: i32 = 0;
-        let max_time = 990;
+        let mut current_time: T = start_time.clone();
         while current_time < max_time {
             if let Some(event) = self.next() {
                 current_time = event.execution_time;
