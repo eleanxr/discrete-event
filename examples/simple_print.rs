@@ -14,7 +14,7 @@ impl EventAction<i32> for PrintAndReschedule {
 }
 
 fn main() {
-    let mut manager = EventManager::new();
+    let mut manager: EventManager<i32> = EventManager::new();
 
     manager.add(Event::new(10, Box::new(PrintAndReschedule {})));
     manager.add(Event::new(5, Box::new(PrintAndReschedule {})));
